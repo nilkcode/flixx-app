@@ -1,4 +1,16 @@
-const global = { CurrentPage: window.location.pathname };
+const global = {
+  CurrentPage: window.location.pathname,
+  search: {
+    term: "",
+    type: "",
+    page: 1,
+    totalPages: 1,
+  },
+  api: {
+    apiKey: "4ddc22750c84515acc020b36bae5905a",
+    apiUrl: "https://api.themoviedb.org/3/",
+  },
+};
 
 async function displayPopularMovies() {
   const { results } = await fetchAPIData("movie/popular");
@@ -182,16 +194,66 @@ function displayBackgroundImage(type, backgroundPath) {
   }
 }
 
-// Display slider movie
-{
-  /* <div class="swiper-slide">
-<a href="movie-details.html?id=1">
-  <img src="./images/no-image.jpg" alt="Movie Title" />
-</a>
-<h4 class="swiper-rating">
-  <i class="fas fa-star text-secondary"></i> 8 / 10
-</h4>
-</div> */
+// Search Moview and show
+
+async function search() {
+  const queryString = window.location.search;
+  const urlParam = new URLSearchParams(queryString);
+  global.search.type = urlParam.get("type");
+  global.search.term = urlParam.get("search-term");
+
+  if (global.search.term !== "" && global.search.term !== null) {
+    // @todo - make request and display results
+    const { results, total_pages, page } = await searchAPIData();
+
+    if (results.length === 0) {
+      showAlert("No result found");
+      return;
+    }
+
+    displaySearchResults(results);
+    document.querySelector("#search-term").value = "";
+  } else {
+    showAlert("Please Insert a Search Term", "error");
+  }
+
+  // console.log(urlParam.get("type"));
+}
+
+function displaySearchResults(results) {
+  results.forEach((result) => {
+    const div = document.createElement("div");
+    div.classList.add("card");
+    div.innerHTML = ` <a href="${global.search.type}-details.html?id=${
+      result.id
+    }">
+    
+    ${
+      result.poster_path
+        ? `<img src="https://image.tmdb.org/t/p/w500${
+            result.poster_path
+          }" class="card-img-top" alt="${
+            global.search.type === "movie" ? result.title : result.name
+          }" />`
+        : `<img src="images/no-image.jpg" class="card-img-top" alt="${
+            global.search.type === "movie" ? result.title : result.name
+          }" />`
+    }
+  </a>
+  <div class="card-body">
+    <h5 class="card-title">${
+      global.search.type === "movie" ? result.title : result.name
+    }</h5>
+    <p class="card-text">
+      <small class="text-muted">Release: ${
+        global.search.type === "movie"
+          ? result.release_date
+          : result.first_air_date
+      }</small>
+    </p>
+  </div>`;
+    document.querySelector("#search-results").appendChild(div);
+  });
 }
 
 async function displaySlider() {
@@ -238,8 +300,8 @@ function initSwiper() {
 
 // Fetch DATA FROM TMDB API
 async function fetchAPIData(endPoint) {
-  const API_KEY = "4ddc22750c84515acc020b36bae5905a";
-  const API_URL = "https://api.themoviedb.org/3/";
+  const API_KEY = global.api.apiKey;
+  const API_URL = global.api.apiUrl;
 
   showSpinner();
 
@@ -259,6 +321,43 @@ function highlightActiveLink() {
       link.classList.add("active");
     }
   });
+}
+
+// Search Fetch DATA FROM TMDB API
+async function searchAPIData() {
+  const API_KEY = global.api.apiKey;
+  const API_URL = global.api.apiUrl;
+
+  showSpinner();
+
+  const response = await fetch(
+    `${API_URL}search/${global.search.type}?api_key=${API_KEY}&language=en-US&query=${global.search.term}`
+  );
+  const data = await response.json();
+  hideSpinner();
+  return data;
+}
+
+// function highlight Current Routing
+function highlightActiveLink() {
+  const links = document.querySelectorAll(".nav-link");
+  links.forEach((link) => {
+    if (link.getAttribute("href") === global.CurrentPage) {
+      link.classList.add("active");
+    }
+  });
+}
+
+// Show Error Alert
+function showAlert(message, className) {
+  const alertElement = document.createElement("div");
+  alertElement.classList.add("alert", className);
+  alertElement.appendChild(document.createTextNode(message));
+  document.querySelector("#alert").appendChild(alertElement);
+
+  setTimeout(function () {
+    alertElement.remove();
+  }, 3000);
 }
 
 // function add Commas
@@ -293,6 +392,7 @@ function init() {
       displayTvShowDetails();
       break;
     case "/search.html":
+      search();
       break;
   }
   highlightActiveLink();
